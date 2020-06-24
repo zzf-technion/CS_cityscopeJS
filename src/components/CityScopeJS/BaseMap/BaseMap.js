@@ -18,6 +18,8 @@ import { HeatmapLayer, PathLayer, GeoJsonLayer } from "deck.gl";
 import { LightingEffect, AmbientLight, _SunLight } from "@deck.gl/core";
 import settings from "../../../settings/settings.json";
 
+import io from "socket.io-client";
+
 class Map extends Component {
     constructor(props) {
         super(props);
@@ -48,6 +50,8 @@ class Map extends Component {
         this._setViewStateToTableHeader();
         // start ainmation/sim/roate
         this._animate();
+
+        this._initWebSocket();
     }
 
     /**
@@ -149,11 +153,18 @@ class Map extends Component {
         }
     }
 
+    _initWebSocket = () => {
+        this.ioClient = io.connect("http://18.27.79.192:8080/");
+        this.ioClient.on("welcome", (socket) => {
+            console.log(socket);
+            this.setState({ websocketState: true });
+        });
+    };
+
     _onViewStateChange = ({ viewState }) => {
         viewState.orthographic = this.props.menu.includes("RESET_VIEW")
             ? true
             : false;
-
         this.setState({ viewState });
     };
 
@@ -294,6 +305,18 @@ class Map extends Component {
                 thisCellProps.color = testHex(color) ? hexToRgb(color) : color;
                 thisCellProps.height = height;
                 thisCellProps.name = name;
+
+                if (this.state.websocketState) {
+                    let pack = [
+                        thisCellProps,
+                        thisCellProps.id,
+                        thisCellProps.height,
+                        thisCellProps.color,
+                    ];
+                    console.log(pack);
+
+                    this.ioClient.emit("roboscopeSocket", pack);
+                }
             }
         });
         this.setState({
